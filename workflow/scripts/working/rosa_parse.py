@@ -159,9 +159,9 @@ def rotation_matrix(pitch, roll, yaw):
 #%%
 
 
-ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/'
+ros_file_path=r'/home/arun/Documents/data/seeg/derivatives/seeg_scenes/'
 
-isub='sub-P027'
+isub='sub-P030'
 
 rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 

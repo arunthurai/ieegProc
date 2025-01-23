@@ -27,10 +27,16 @@ if config['fastsurfer_config']['version'] =='dev':
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
         group: 'preproc'
-        threads: 8
+        threads: 4
+        container: config['singularity']['fastsurfer']
         shell:
-            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
-            --t1 {input.t1} --sd {params.fastsurfer_out} --threads {params.threads} --vox_size {params.vox_size} --sid sub-{params.subjid} --py {params.py} --viewagg_device cpu --fsaparc --parallel --allow_root"
+            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024 {params.fastsurfer_run}/run_fastsurfer.sh \
+            --t1 {input.t1} --sd {params.fastsurfer_out} --threads {params.threads} --vox_size {params.vox_size} --sid sub-{params.subjid} --py {params.py} --viewagg_device cpu --fsaparc --allow_root --no_cereb --no_hypothal"
+#troubleshoot
+#        shell:
+#            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024 {params.fastsurfer_run}/run_fastsurfer.sh \
+#            --t1 {input.t1} --sd {params.fastsurfer_out} --threads {params.threads} --vox_size {params.vox_size} --sid sub-{params.subjid} --py {params.py}  --no_cereb --viewagg_device cpu --fsaparc --allow_root"    
+
 elif config['fastsurfer_config']['version'] =='stable':
     rule fastsurfer_seg:
         input: 
@@ -48,10 +54,11 @@ elif config['fastsurfer_config']['version'] =='stable':
             touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer.done")),
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
-        threads: 8
+        threads: 2
+        container: config['singularity']['fastsurfer']
         group: 'preproc'
         shell:
-            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
+            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024 {params.fastsurfer_run}/run_fastsurfer.sh \
             --t1 {input.t1} --sd {params.fastsurfer_out} --sid sub-{params.subjid} --py {params.py} --vox_size {params.vox_size} --viewagg_device cpu --fsaparc --no_cereb --parallel --ignore_fs_version --allow_root"
 elif config['fastsurfer_config']['version'] =='master':
     rule fastsurfer_seg:
@@ -69,10 +76,11 @@ elif config['fastsurfer_config']['version'] =='master':
             touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer.done")),
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
-        threads: 8
+        threads: 2
+        container: config['singularity']['fastsurfer']
         group: 'preproc'
         shell:
-            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
+            "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:2048 {params.fastsurfer_run}/run_fastsurfer.sh \
             --t1 {input.t1} --sd {params.fastsurfer_out} --sid sub-{params.subjid} --py {params.py} --run_viewagg_on cpu --fsaparc --parallel"
 
 #final_outputs.extend(expand(rules.fastsurfer_seg.output.touch_fastsurfer, subject=subjects))
@@ -101,7 +109,7 @@ rule fastsurfer_symlinks:
     output:
         touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer_symlinks.done")),
     group: 'preproc'
-    threads: 8
+    threads: 2
     shell:
         "rm {params.talairach_lta} {params.talairach_skull_lta} {params.rawavg} {params.lh_pial} {params.rh_pial} {params.lh_white_h} {params.rh_white_h} {params.lh_white_k} {params.rh_white_k}&&\
         cp {params.talairach_xfm} {params.talairach_lta}&&\
@@ -127,7 +135,7 @@ rule aparcseg_to_nrrd:
     output:
         seg_nrrd = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.seg.nrrd')
     group: 'preproc'
-    threads: 8
+    threads: 2
     script: '../scripts/working/niiTonrrd.py'
 
 
@@ -149,7 +157,7 @@ if config['seeg_contacts']['present']:
                     category='Electrodes in template space',
                     subcategory='{desc} reg to {template}'),
         group: 'preproc'
-        threads: 8
+        threads: 2
         script: '../scripts/vis_electrodes_native.py'
 
     final_outputs.extend(expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),prefix='sub-'+subject_id+'/qc/sub-'+subject_id,suffix='electrodes.html',space='native',include_subject_dir=False),

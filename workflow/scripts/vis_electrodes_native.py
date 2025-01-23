@@ -126,7 +126,7 @@ def readRegMatrix(trsfPath):
 #%%
 
 
-debug = False
+debug = True
 if debug:
 	class dotdict(dict):
 		"""dot.notation access to dictionary attributes"""
@@ -138,8 +138,8 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub="016"
-	datap=r'/home/greydon/Documents/data/SEEG_peds/derivatives'
+	isub="166"
+	datap=r'/home/arun/Documents/data/seeg/derivatives'
 	
 	input=dotdict({
 		't1_fname':datap+f'/fastsurfer/sub-P{isub}/mri/orig.mgz',
@@ -148,7 +148,7 @@ if debug:
 	})
 	
 	output=dotdict({
-		'html':datap+f'/atlasreg/qc/sub-P{isub}/sub-P{isub}_space-native_electrodes.html',
+		'html':datap+f'/atlasreg/sub-P{isub}/qc/sub-P{isub}_space-native_electrodes.html',
 	})
 	
 	params=dotdict({

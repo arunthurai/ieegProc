@@ -2,7 +2,7 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/SEEG
+bids_dir: /home/arun/Documents/data/seeg
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
@@ -13,13 +13,13 @@ bids_dir: /home/greydon/Documents/data/SEEG
 subject_prefix: 'P'
 
 registration:
-    run: True
+    run: False
 segmentation:
     run: True
 visqc:
     run: True
 fastsurfer:
-    run: True
+    run: False
 hippunfold:
     run: False
 
@@ -30,12 +30,16 @@ fastsurfer_vol:
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
+
 #
 #--- imaging volumes
 #
 
 contrast_t1:
     present: True
+    run: '02'
+    suffix: 'T1w'
+    ext: '.nii.gz'
 
 noncontrast_t1:
     present: True
@@ -46,7 +50,7 @@ noncontrast_t1:
     suffix: 'T1w'
     ext: '.nii.gz'
     position: 0
-    algo: greedy
+    algo: ants
 
 post_image:
     present: True
@@ -69,11 +73,11 @@ other_vol:
     present: False
     session: 'pre'
     datatype: 'anat'
-    acq: null
+    acq: '7T'
     run: '01'
-    suffix: 'FLAIR'
+    suffix: 'desc-T1w_MPR'
     ext: '.nii.gz'
-    algo: ants
+    algo: ants_skullstrip
 
 other_vol2:
     present: False
@@ -81,9 +85,9 @@ other_vol2:
     datatype: 'anat'
     acq: '7T'
     run: '01'
-    suffix: 'T1w'
+    suffix: 'desc-T1map'
     ext: '.nii.gz'
-    algo: ants
+    algo: greedy
 
 seeg_contacts:
     present: True
@@ -104,7 +108,7 @@ subject_reg:
 
 template_reg:
     affine_reg:
-        algo: reg_aladin
+        algo: greedy
         reg_aladin:
             dof: "" # use "-rigOnly" for 6 DOF and "" for 12 DOF
         greedy:
@@ -160,12 +164,12 @@ tissue_labels:
 
 fastsurfer_config:
     ses: 'pre'
-    home: "/home/greydon/Documents/GitHub/FastSurfer"
+    home: "/home/arun/Documents/Fastsurfer"
     colors: resources/FreeSurferColorLUT.tsv
     py: "python3.10"
     sid: 'fastsurfer'
-    batch: 8
-    threads: 4
+    batch: 4
+    threads: 6
     orien: 'lps'
     vox_size: 1    #(0=nearest,1=linear(default),2=quadratic,3=cubic)
     vol_segstats: True

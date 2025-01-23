@@ -391,12 +391,15 @@ for ifile in patient_files:
 		fid.write("# CoordinateSystem = 0\n")
 		fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
 	
-	head = ['node_id', 'x', 'y', 'z', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'desc', 'associatedNodeID']
-	del data_table_full['node_id']
-	del data_table_full['associatedNodeID']
-	data_table_full.insert(data_table_full.shape[1],'node_id',pd.Series(['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]))
-	data_table_full.insert(data_table_full.shape[1],'associatedNodeID', pd.Series(np.repeat('',data_table_full.shape[0])))
-	data_table_full.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.6f')
+	fcsv_data['associatedNodeID']= pd.Series(np.repeat('',fcsv_data.shape[0]))
+	fcsv_data['label']=[str(x).strip() for x in fcsv_data['label']]
+	fcsv_data.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
+  #   head = ['id', 'x', 'y', 'z', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'desc', 'associatedNodeID']
+  #   del data_table_full['node_id']
+ 	# del data_table_full['associatedNodeID']
+ 	# data_table_full.insert(data_table_full.shape[1],'id',pd.Series(['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]))
+ 	# data_table_full.insert(data_table_full.shape[1],'associatedNodeID', pd.Series(np.repeat('',data_table_full.shape[0])))
+  #   data_table_full.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.6f')
 
 
 coords_fname = make_bids_filename(isub, 'native', None, 'SEEGA.tsv', patient_output)

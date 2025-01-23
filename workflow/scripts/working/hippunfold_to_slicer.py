@@ -117,7 +117,7 @@ if debug:
 			self.__dict__.update(kwargs)
 	
 	subject_id="sub-P111"
-	deriv_dir='/home/greydon/Documents/data/SEEG/derivatives'
+	deriv_dir='/home/arun/Documents/data/seeg/derivatives'
 	
 	input=dotdict({
 				't1_fname':'{deriv_dir}/hippunfold/hippunfold/{subject_id}/anat/{subject_id}_desc-preproc_T1w.nii.gz',
@@ -125,15 +125,20 @@ if debug:
 	params=dotdict({
 				'deriv_dir':deriv_dir,
 				'subject_id':subject_id,
-				'dseg_labels_file':'/home/greydon/Documents/GitHub/seeg2bids-pipeline/resources/desc-subfields_atlas-bigbrain_dseg.tsv'
+				'dseg_labels_file':'/home/arun/Documents/GitHub/ieegProc/resources/desc-subfields_atlas-bigbrain_dseg.tsv'
 				})
 	
 	snakemake = Namespace(input=input,params=params)
 
 
-atlas_labels = pd.read_table(snakemake.params.dseg_labels_file)
+# atlas_labels = pd.read_table(snakemake.params.dseg_labels_file)
+# atlas_labels['lut']=atlas_labels[['r','g','b']].to_numpy().tolist()
+# data_dir = snakemake.params.deriv_dir
+
+
+atlas_labels = pd.read_table('/home/arun/Documents/ieegProc/resources/desc-subfields_atlas-bigbrain_dseg.tsv')
 atlas_labels['lut']=atlas_labels[['r','g','b']].to_numpy().tolist()
-data_dir = snakemake.params.deriv_dir
+data_dir = '/home/arun/Documents/data/seeg/derivatives'
 
 
 for isub in os.listdir(os.path.join(data_dir,'hippunfold','hippunfold')):

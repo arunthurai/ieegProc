@@ -115,7 +115,6 @@ def write_nrrd(data_obj, out_file,atlas_labels,orientation='ras'):
 #%%
 
 debug = False
-
 if debug:
 	class dotdict(dict):
 		"""dot.notation access to dictionary attributes"""
@@ -127,9 +126,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub="sub-P155"
-	data_dir=r'/media/greydon/lhsc_data/datasets/DBS/derivatives/atlasreg'
-	repo_path = r'/home/greydon/Documents/GitHub/ieegProc/resources'
+	isub="sub-P162"
+	data_dir=r'/home/arun/Documents/data/seeg/derivatives/atlasreg'
+	repo_path = r'/home/arun/Documents/ieegProc/resources'
 	
 	input=dotdict({
 				'segs': data_dir+f'/{isub}/{isub}_desc-nonlin_atlas-CerebrA_from-MNI152NLin2009cSym_dseg.nii.gz',
@@ -142,7 +141,7 @@ if debug:
 				})
 	
 	output=dotdict({
-				'seg_nrrd': "/home/greydon/Downloads/tpl-MNI152NLin2009aAsym_atlas-Glasser_dseg.seg.nrrd"
+				'seg_nrrd': "/home/arun/Downloads/tpl-MNI152NLin2009aAsym_atlas-Glasser_dseg.seg.nrrd"
 				})
 	
 	snakemake = Namespace(output=output, input=input,params=params)

@@ -98,6 +98,31 @@ elif config['contrast_t1']['present'] and config['noncontrast_t1']['present']:
                 'greedy -d 3 -threads 4 -a -ia-image-centers -m MI -dof {params.dof} -i {input.ref} {input.flo} -o {output.xfm_ras_inv} -n {params.n_iterations_linear} &&'
                 'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {output.xfm_ras_inv}&&'
                 '{params.c3d_affine_tool} {output.xfm_ras_inv} -inv -o {output.xfm_ras}'
+    elif config['noncontrast_t1']['algo'] =='ants':
+        rule rigonly_ants_contrast:
+            input: 
+                flo = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,acq='noncontrast',suffix='T1w.nii.gz'),
+                ref = get_reference_t1,
+            params:
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+                xfm_ras_prefix = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='',to='noncontrast',from_='contrast',desc='rigid',type_='ras'),
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix=config['noncontrast_t1']['suffix']+config['noncontrast_t1']['ext'],space='T1w',desc='rigidInterp'),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_='noncontrast',to='contrast',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='0GenericAffine.mat',to='noncontrast',from_='contrast',desc='rigid',type_='ras'),
+            group: 'preproc'
+            shell:
+                'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4&&antsRegistration --verbose 1 --dimensionality 3 --float 1 '
+                '--output ["{params.xfm_ras_prefix}","{output.warped_subj}"] '
+                "--interpolation NearestNeighbor --winsorize-image-intensities [0.005,0.995] "
+                "--initial-moving-transform [{input.ref},{input.flo},1] "
+                "--transform Rigid[0.1] --metric MI[{input.ref},{input.flo},1,32,Regular,0.25] "
+                "--convergence [1000x500x250x100,1e-6,10] "
+                "--shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox &&"
+                "ConvertTransformFile 3 {params.xfm_ras_prefix}0GenericAffine.mat {params.xfm_ras_prefix}xfm.txt --hm --ras&&"
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
+                '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
+    
 
     rule apply_noninterp_transform_noncontrast:
         input:
@@ -411,6 +436,42 @@ if config['other_vol']['present']:
                 'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
                 '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
 
+    elif config['other_vol']['algo'] =='ants_skullstrip':
+        rule mri_synthstrip:
+            input: 
+                flo = rules.import_other_vol.output,
+                ref = get_reference_t1,
+            output: 
+                skull_strip_ref = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, acq='contrast', desc ='mri_synthstrip', suffix='T1w.nii.gz'),
+                skull_strip_flo = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, acq=config['other_vol']['acq'], suffix=config['other_vol']['suffix']+'_mri_synthstrip'+config['other_vol']['ext'],include_session_dir=False)
+            shell:
+                'mri_synthstrip -i {input.ref} -o {output.skull_strip_ref}&&'
+                'mri_synthstrip -i {input.flo} -o {output.skull_strip_flo}'
+
+        rule rigonly_ants_skullstrip_other:
+            input: 
+                flo = rules.mri_synthstrip.output.skull_strip_flo,
+                ref = rules.mri_synthstrip.output.skull_strip_ref,
+            params:
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+                xfm_ras_prefix = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='',to=config['other_vol']['suffix'],acq=config['other_vol']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix=config['other_vol']['suffix']+config['other_vol']['ext'],acq=config['other_vol']['acq'],space='T1w',desc='rigidInterp'),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol']['suffix'],acq=config['other_vol']['acq'],to='T1w',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='0GenericAffine.mat',to=config['other_vol']['suffix'],acq=config['other_vol']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            group: 'preproc'
+            shell:
+                'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4&&antsRegistration --verbose 1 --dimensionality 3 --float 1 '
+                '--output ["{params.xfm_ras_prefix}","{output.warped_subj}"] '
+                "--interpolation NearestNeighbor --winsorize-image-intensities [0.005,0.995] "
+                "--initial-moving-transform [{input.ref},{input.flo},1] "
+                "--transform Rigid[0.1] --metric MI[{input.ref},{input.flo},1,32,Regular,0.25] "
+                "--convergence [1000x500x250x100,1e-6,10] "
+                "--shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox &&"
+                "ConvertTransformFile 3 {params.xfm_ras_prefix}0GenericAffine.mat {params.xfm_ras_prefix}xfm.txt --hm --ras&&"
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
+                '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
+
 
     rule apply_noninterp_transform_other:
         input:
@@ -517,6 +578,30 @@ if config['other_vol2']['present']:
                 'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
                 '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
 
+    elif config['other_vol2']['algo'] =='ants_cc':
+        rule rigonly_ants_other2:
+            input: 
+                flo = rules.import_other_vol2.output,
+                ref = get_reference_t1,
+            params:
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+                xfm_ras_prefix = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='',to=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],acq=config['other_vol2']['acq'],space='T1w',desc='rigidInterp'),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='0GenericAffine.mat',to=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            group: 'preproc'
+            shell:
+                'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4&&antsRegistration --verbose 1 --dimensionality 3 --float 1 '
+                '--output ["{params.xfm_ras_prefix}","{output.warped_subj}"] '
+                "--interpolation NearestNeighbor --winsorize-image-intensities [0.005,0.995] "
+                "--initial-moving-transform [{input.ref},{input.flo},1] "
+                "--transform Rigid[0.1] --metric CC[{input.ref},{input.flo},1,32,Regular,0.25] "
+                "--convergence [1000x500x250x100,1e-6,10] "
+                "--shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox &&"
+                "ConvertTransformFile 3 {params.xfm_ras_prefix}0GenericAffine.mat {params.xfm_ras_prefix}xfm.txt --hm --ras&&"
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
+                '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
 
     rule apply_noninterp_transform_other2:
         input:

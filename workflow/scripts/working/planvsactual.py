@@ -10,11 +10,17 @@ import math
 from statistics import NormalDist
 import json
 import dataframe_image as dfi
+from pptx.util import Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.text import MSO_AUTO_SIZE
+from pptx import Presentation
+from pptx.util import Inches
 
 if os.path.exists('/home/greydon/Documents/GitHub/seeg2bids-pipeline'):
 	root_dir=r'/home/greydon/Documents/GitHub/seeg2bids-pipeline'
 else:
-	root_dir=r'/home/greydon/Documents/GitHub/ieegProc'
+	root_dir=r'/home/arun/Documents/ieegProc'
 
 os.chdir(os.path.join(root_dir,'workflow/scripts/working'))
 from helpers import determineFCSVCoordSystem,determine_groups,norm_vec,mag_vec
@@ -169,7 +175,7 @@ remap_dict={
 
 #%%
 
-debug = True
+debug = False
 write_lines = False
 
 
@@ -207,9 +213,8 @@ if write_lines:
 		sample_line = json.load(file)
 
 
-
-isub = snakemake.input.isub
-data_dir = snakemake.input.data_dir
+isub = 'sub-P162'
+data_dir = '/home/arun/Documents/data/seeg/derivatives/seeg_scenes'
 
 patient_files = [x for x in glob.glob(f"{os.path.join(data_dir,isub)}/*csv") if 'space-world' not in os.path.basename(x)]
 
@@ -437,13 +442,13 @@ else:
 elec_table_styled=elec_table.style.map(lambda x: "background-color:#ccffcc;" if x<2 else 'background-color:#ffff00;' if x>=2 and x<3 else "background-color:#ffcccc;")\
 	.format('{0:,.2f}').set_properties(**{'text-align': 'center'})
 
-writer = pd.ExcelWriter(snakemake.output.out_excel, engine='openpyxl')
+writer = pd.ExcelWriter(f'{data_dir}/{isub}/{isub}_errors.xlsx', engine='openpyxl')
 elec_table_styled.to_excel(writer,sheet_name='Sheet1', float_format='%.2f')
 writer.close()
 
 
 pd.set_option('colheader_justify', 'center')
 pd.set_option('display.width', -1)
-dfi.export(elec_table_styled, snakemake.output.out_svg, table_conversion='firefox')
+dfi.export(elec_table_styled, f'{data_dir}/{isub}/{isub}_errors.svg', table_conversion='firefox')
 
 

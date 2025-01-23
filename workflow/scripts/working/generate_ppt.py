@@ -117,9 +117,9 @@ if debug:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
-    isub = 'sub-P157'
+    isub = 'sub-P161'
     # data_dir = r'/media/greydon/lhsc_data/datasets/SEEG_peds/derivatives'
-    data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
+    data_dir = r'/home/arun/Documents/data/seeg/derivatives'
 
     input = dotdict({
                     'shopping_list': f'{data_dir}/seeg_scenes/{isub}/*shopping_list.xlsx',
@@ -129,10 +129,10 @@ if debug:
     snakemake = Namespace(input=input)
 
 
-pt_pin = 'PIN'
-sx_date = 'yyyy-mm-dd'
-lastname = "lastname"
-firstname = "firstname"
+pt_pin = '1096 53 24'
+sx_date = '2024-10-31'
+lastname = "Bartlett"
+firstname = "Trevor"
 
 
 if glob.glob(snakemake.input.shopping_list):
