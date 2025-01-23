@@ -2,124 +2,143 @@
 #--- filepaths
 #
 
-#laptop
-bids_dir: /home/greydon/Documents/data/SEEG_peds
+bids_dir: /home/arun/Documents/data/seeg
 
 #work computer
-#bids_dir: /media/data/data/SEEG
+#bids_dir: /home/greydon/Documents/data/cingulate_seizures
 
 #external drive
-#bids_dir: /media/greydon/Snobeanery/PhD_data/SEEG
+#bids_dir: /media/greydon/lhsc_data/datasets/SEEG
 
-subject_prefix: P
-deface: False
-facemask: resources/facemask.nii.gz
-mean_reg2mean: resources/mean_reg2mean.nii.gz
+subject_prefix: 'P'
+
+registration:
+    run: False
+segmentation:
+    run: True
+visqc:
+    run: True
+fastsurfer:
+    run: False
+hippunfold:
+    run: False
+
+fastsurfer_vol:
+    ses: 'pre'
+    acq: null           #use 'null' to ignore key
+    desc: null          #use 'null' to ignore key
+    run: '01'
+    suffix: 'T1w'
+    ext: '.nii.gz'
 
 #
 #--- imaging volumes
 #
 
-noncontrast_t1:
-    present: True
-    acq: False
-    reg_aladin: "-rigOnly" # use "-rigOnly" for 6 DOF and "" for 12 DOF
-
 contrast_t1:
     present: True
+    run: '02'
+    suffix: 'T1w'
+    ext: '.nii.gz'
 
-post_ct:
+noncontrast_t1:
     present: True
+    session: 'pre'
+    datatype: 'anat'
+    acq: null
+    run: '01'
+    suffix: 'T1w'
+    ext: '.nii.gz'
     position: 0
-    reg_aladin: "" # use "-rigOnly" for 6 DOF and "" for 12 DOF
+    algo: ants
 
-seeg_contacts:
+post_image:
     present: True
+    session: 'post'
+    datatype: 'ct'
+    acq: 'Electrode'
+    run: '01'
+    suffix: 'ct'
+    ext: '.nii.gz'
+    position: -1
+    algo: ants
 
 pet:
     present: False
-    position: 0
+    position: -1
     task: rest
-    reg_aladin: "-rigOnly" # use "-rigOnly" for 6 DOF and "" for 12 DOF
+    algo: ants
 
-subject_t1w: /bids/sub-{subject_id}/ses-pre/anat/sub-{subject_id}_ses-pre_acq-FSPGR_run-01_T1w.nii.gz
+other_vol:
+    present: False
+    session: 'pre'
+    datatype: 'anat'
+    acq: '7T'
+    run: '01'
+    suffix: 'desc-T1w_MPR'
+    ext: '.nii.gz'
+    algo: ants_skullstrip
 
-#use this if a particular subject has a custom path
-subject_t1w_custom: []
+other_vol2:
+    present: False
+    session: 'pre'
+    datatype: 'anat'
+    acq: '7T'
+    run: '01'
+    suffix: 'desc-T1map'
+    ext: '.nii.gz'
+    algo: greedy
 
-atlas_reg:
-    reg_aladin:
-        active: True
-    greedy:
-        active: False
-        n_iterations_affine: 100x50x0
-        n_iterations_deform: 100x40x20
-        grad_sigma: 4.0vox
-        warp_sigma: 1.4vox
+seeg_contacts:
+    present: True
+    space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
+    scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
+
+#
+#--- registration paramters
+#
+
+subject_reg:
+    affine_reg:
+        reg_aladin:
+            dof: "-rigOnly" # use "-rigOnly" for 6 DOF and "" for 12 DOF
+        greedy:
+            n_iterations_linear: 100x50x10
+            dof: 6
+
+template_reg:
+    affine_reg:
+        algo: greedy
+        reg_aladin:
+            dof: "" # use "-rigOnly" for 6 DOF and "" for 12 DOF
+        greedy:
+            n_iterations_affine: 100x50x10
+    nlin_reg:
+        algo: ants
+        ants:
+            dim: 3
+            intensity_opts: '-u 1 -w [0.01,0.99] -z 1'
+            linear:
+                reg_iterations: '1000x500x250x0'
+                shrink_factors: '6x4x2x1'
+                smoothing_factors: '4x2x1x0'
+            deform:
+                shrink_factors: '12x6x4x2x1'  # default in antsMVTC2: 6x4x2x1
+                smoothing_factors: '6x3x2x1x0vox' # default in antsMVTC2: 3x2x1x0
+                reg_iterations: '100x100x70x50x10' # default in antsMVTC2: 100x100x70x20
+                transform_model: 'SyN[0.1,3,0]'
+                sim_metric: CC
+            shape_update:
+                gradient_step: 0.25
+        greedy:
+            n_iterations_deform: 100x40x20
+            grad_sigma: 4.0vox
+            warp_sigma: 1.4vox
+    
 
 #
 #--- segmentation
 #
-
-fastsurfer:
-    run: True
-    home: "/home/greydon/Documents/GitHub/FastSurfer"
-    py: "python"
-    sid: 'fastsurfer'
-    batch: 8
-    threads: 4
-    order: 0    #(0=nearest,1=linear(default),2=quadratic,3=cubic)
-    seg_only: True
-    vol_segstats: True
-
-fmriprep:
-    run: False
-    fmriprep_license: resources/license.txt
-    bids_filter: resources/bids_filter.json
-
-hippunfold:
-    run: True
-    modality: T1w
-    filter_T1w: 'acquisition=None'
-    path_T1w: _ses-pre_run-01_T1w.nii.gz
-
-
-subject_elec_ct: /bids/sub-f'{config['subject_prefix']}'{subject}/ses-post/ct/sub-f'{config['subject_prefix']}'{subject}_ses-post_acq-Electrode_run-01_ct.nii.gz
-subject_elec_t1w: /bids/sub-f'{config['subject_prefix']}'{subject}/ses-post/anat/sub-f'{config['subject_prefix']}'{subject}_ses-post_acq-Electrode3D_run-01_T1w.nii.gz
-subject_t1w_hipp: 
-
-#use this if a particular subject has a custom path
-subject_elec_ct_custom: []
-    #'047': /bids/sub-P{subject}/ses-post/ct/sub-P{subject}_ses-post_acq-Electrode_run-03_ct.nii.gz
-
-subject_elec_t1w_custom: []
-
-subject_seega_scene: /derivatives/seega_scenes/sub-P{subject}/SEEGA.fcsv
-subject_electrodes: /derivatives/seega_coordinates/sub-P{subject}/sub-P{subject}_space-native_SEEGA.fcsv
-
-#use this if a particular subject has custom path
-subject_electrodes_custom: []
-template: MNI152NLin2009cSym
-
-template_t1w: resources/tpl-{template}/tpl-{template}_res-1_T1w.nii.gz
-template_mask: resources/tpl-{template}/tpl-{template}_res-1_desc-brain_mask.nii.gz 
-
-template_atlas_dseg_nii: resources/tpl-{template}/tpl-{template}_res-1_atlas-{atlas}_dseg.nii.gz
-template_atlas_dseg_tsv: resources/tpl-{template}/tpl-{template}_atlas-{atlas}_dseg.tsv
-
-template_tissue_probseg: resources/tpl-{template}/tpl-{template}_res-1_label-{tissue}_probseg.nii.gz
-
-tissue_labels:
-    - GM
-    - WM
-    - CSF
-
-atlases:
-    - CerebrA
-
-#number of times to dilate  (each time 3x3x3 mode dilation)
-n_atlas_dilate: 3
-n_init_mask_dilate: 1 
 
 default_k_tissue_classes: 3 #higher than 3 to capture contrast-enhanced regions too
 atropos_smoothing_factor: '[0.2,1x1x1]'
@@ -127,7 +146,6 @@ convergence: '[3,0]'
 
 #use this to specify custom values for subjects, e.g. here sub-P001 will have k=4 tissue classes for Atropos initialization
 subject_k_tissue_classes: []
-#    001: 4
 #    012: 4
 #    039: 4
 #    047: 4
@@ -135,11 +153,109 @@ subject_k_tissue_classes: []
 #    058: 4
 #    061: 3
 
+tissue_labels:
+    - GM
+    - WM
+    - CSF
+
+#
+#--- connected piplines
+#
+
+fastsurfer_config:
+    ses: 'pre'
+    home: "/home/arun/Documents/Fastsurfer"
+    colors: resources/FreeSurferColorLUT.tsv
+    py: "python3.10"
+    sid: 'fastsurfer'
+    batch: 4
+    threads: 6
+    orien: 'lps'
+    vox_size: 1    #(0=nearest,1=linear(default),2=quadratic,3=cubic)
+    vol_segstats: True
+    version: 'dev' # master, stable or dev
+
+fmriprep:
+    run: False
+    fmriprep_license: resources/license.txt
+    bids_filter: resources/bids_filter.json
+
+hippunfold_config:
+    modality: T1w
+    atlas_labels_tsv: resources/desc-subfields_atlas-multihist7_dseg.tsv
+    path_T1w: _ses-pre_run-01_T1w.nii.gz
+
+#
+#--- template space/atlases
+#
+
+facemask: resources/facemask.nii.gz
+mean_reg2mean: resources/mean_reg2mean.nii.gz
+generic_colors: resources/generic_colors.txt
+
+adult_template:
+    active_space: 'MNI152NLin2009cSym'
+    MNI152NLin2009cSym:
+        name: 'adult_template'
+        space: 'MNI152NLin2009cSym'
+        atlas: 'CerebrA'
+        orien: 'ras'
+        t1w: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_T1w.nii.gz
+        mask: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_desc-brain_mask.nii.gz
+        tissue_probseg: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_label-{tissue}_probseg.nii.gz
+        atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
+        atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
+    MNI152NLin2009aAsym:
+        name: 'adult_template'
+        space: 'MNI152NLin2009aAsym'
+        atlas: 'Glasser'
+        orien: 'ras'
+        t1w: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_T1w.nii.gz
+        mask: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_desc-brain_mask.nii.gz
+        tissue_probseg: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_label-{tissue}_probseg.nii.gz
+        atlas_dseg_nii: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_atlas-{atlas}_dseg.nii.gz
+        atlas_dseg_tsv: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_atlas-{atlas}_dseg.tsv
+
+MNIPediatricAsymCohort2:
+    name: 'MNIPediatricAsymCohort2'
+    space: 'MNIPediatricAsymCohort2'
+    atlas: 'CerebrA'
+    orien: 'ras'
+    t1w: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_T1w.nii.gz
+    mask: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_desc-brain_mask.nii.gz
+    tissue_probseg: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_label-{tissue}_probseg.nii.gz
+    atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
+    atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
+
+MNIPediatricAsymCohort4:
+    name: 'MNIPediatricAsymCohort4'
+    space: 'MNIPediatricAsymCohort4'
+    atlas: 'CerebrA'
+    orien: 'ras'
+    t1w: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_T1w.nii.gz
+    mask: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_desc-brain_mask.nii.gz
+    tissue_probseg: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_label-{tissue}_probseg.nii.gz
+    atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
+    atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
+
+MNIPediatricAsymCohort6:
+    name: 'MNIPediatricAsymCohort6'
+    space: 'MNIPediatricAsymCohort6'
+    atlas: 'CerebrA'
+    orien: 'ras'
+    t1w: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_T1w.nii.gz
+    mask: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_desc-brain_mask.nii.gz
+    tissue_probseg: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_label-{tissue}_probseg.nii.gz
+    atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
+    atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
+
+#number of times to dilate  (each time 3x3x3 mode dilation)
+n_atlas_dilate: 3
+n_init_mask_dilate: 1 
 
 #parameters for ants transformation
 ants:
     dim: 3
-#    random_seed: 42 #requires ants version at least 2.3.1 (includes --random-seed option) - removed this for compatibility with older version of ANTS..  (e.g. that used in neuroglia-core)
     intensity_opts: '-u 1 -w [0.01,0.99] -z 1'
     linear:
         reg_iterations: '1000x500x250x0'
@@ -154,6 +270,9 @@ ants:
     shape_update:
         gradient_step: 0.25
 
+ext_libs:
+    c3d_affine_tool: resources/c3d-1.4.0/bin/c3d_affine_tool
+    c3d: resources/c3d-1.4.0/bin/c3d
 singularity:
     neuroglia-core: "docker://khanlab/neuroglia-core:latest"
     fastsurfer: "docker://deepmi/fastsurfer:latest"

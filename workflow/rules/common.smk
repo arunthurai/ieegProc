@@ -146,4 +146,75 @@ def bids(root=None, datatype=None, prefix=None, suffix=None, subject=None, sessi
     
     return filename
 
+def get_mni_t1w(subject_id):
+    return get_age_appropriate_template_name(subject_id, key='t1w')
+
+def get_mni_space(subject_id):
+    return get_age_appropriate_template_name(subject_id, key='space')
+
+def get_electrodes_coords(subject_id,coords_space=None,coords_type=None):
+    if coords_space is not None:
+        file=f'{sep}'.join([config['bids_dir'], config['seeg_contacts']['space_coords'].format(subject=subject_id,coords_space=coords_space,coords_type=coords_type)])
+    else:
+        file=f'{sep}'.join([config['bids_dir'], config['seeg_contacts']['scene_coords'].format(subject=subject_id,coords_type=coords_type)])
+    print(file)
+    return file
+
+def get_age_appropriate_template_name(subject=None, key='t1w'):
+    subject=subject[0]
+    if not exists(join(config['bids_dir'], 'bids','participants.tsv')):
+        return config['adult_template'][config['adult_template']['active_space']][key]
+    else:
+        df = pd.read_table(join(config['bids_dir'], 'bids','participants.tsv'), dtype = str, header=0)
+        if f'sub-{subject}' in df.participant_id.to_list():
+            age=int(df[df['participant_id']==f'sub-{subject}']['age'].values)
+            if age <18 and age > 13:
+                return config['MNIPediatricAsymCohort6'][key]
+            elif age <=13 and age > 7:
+                return config['MNIPediatricAsymCohort4'][key]
+            elif age <=7:
+                return config['MNIPediatricAsymCohort2'][key]
+            else:
+                return config['adult_template'][config['adult_template']['active_space']][key]
+        else:
+            return config['adult_template'][config['adult_template']['active_space']][key]
+
+def get_noncontrast_filename(wildcards):
+    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+f'{wildcards.subject}'), prefix='sub-'+f'{wildcards.subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='*', suffix='T1w.nii.gz'))
+    if len(files) <=1:
+        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
+        print(file)
+        if not exists(file[0]):
+            file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='02', suffix='T1w.nii.gz'),subject=wildcards.subject)
+            if not exists(file[0]):
+                file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
+    
+    files.sort(key=lambda f: int(re.sub('\D', '', f)))
+    file=files[0]
+    print(f'Pre T1w non-contrast file: {basename(file)}')
+    return file
+
+def get_noncontrast_filename_fs(wildcards):
+    ses=config['fastsurfer_vol']['ses']
+    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+f'{wildcards.subject}'), prefix='sub-'+f'{wildcards.subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run='*', suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']))
+    if len(files) <1:
+        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run=config['fastsurfer_vol']['run'], suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']),subject=wildcards.subject)
+        print(file)
+    
+    files.sort(key=lambda f: int(re.sub('\D', '', f)))
+    file=files[0]
+    print(f'Freesurfer input volume: {basename(file)}')
+    return file
+
+def get_pre_t1_filename(wildcards):
+    files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype='anat', session='pre', run='*', suffix='T1w.nii.gz'))
+    if len(files)==0:
+        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'), subject=wildcards.subject)
+    else:
+        files.sort(key=lambda f: int(re.sub('\D', '', f)))
+        file=files[-1]
+    
+    if file:
+        print(f'Pre T1w contrast file: {basename(file)}')
+    return file
 

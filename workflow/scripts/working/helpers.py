@@ -7,9 +7,10 @@ from collections import ChainMap
 import pandas as pd
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 
-def determineFCSVCoordSystem(input_fcsv):
+def determineFCSVCoordSystem(input_fcsv,overwrite_fcsv=False):
 	# need to determine if file is in RAS or LPS
 	# loop through header to find coordinate system
 	coordFlag = re.compile('# CoordinateSystem')
@@ -18,6 +19,7 @@ def determineFCSVCoordSystem(input_fcsv):
 	coord_sys=None
 	headFin=None
 	ver_fin=None
+	
 	with open(input_fcsv, 'r+') as fid:
 		rdr = csv.DictReader(filter(lambda row: row[0]=='#', fid))
 		row_cnt=0
@@ -39,32 +41,36 @@ def determineFCSVCoordSystem(input_fcsv):
 				headFin=['id']+cleaned_dict[headString[0]]
 			row_cnt +=1
 	
-	if headFin is not None:
-		headFin=dict(ChainMap(*[{i:x} for i,x in enumerate(headFin)]))
-	
 	if any(x in coord_sys for x in {'LPS','1'}):
 		df = pd.read_csv(input_fcsv, skiprows=3, header=None)
+		
+		if df.shape[1] != 13:
+			df=df.iloc[:,:14]
+		
 		df[1] = -1 * df[1] # flip orientation in x
 		df[2] = -1 * df[2] # flip orientation in y
 		
-		with open(input_fcsv, 'w') as fid:
-			fid.write("# Markups fiducial file version = 4.11\n")
-			fid.write("# CoordinateSystem = 0\n")
-			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
-		
-		df.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
-							6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-							11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
-		
-		df['associatedNodeID']= pd.Series(np.repeat('',df.shape[0]))
-		df.round(3).to_csv(input_fcsv, sep=',', index=False, line_terminator="", mode='a', header=False)
-		
-		print(f"Converted LPS to RAS: {os.path.dirname(input_fcsv)}/{os.path.basename(input_fcsv)}")
-	return ver_fin,headFin
+		if overwrite_fcsv:
+			with open(input_fcsv, 'w') as fid:
+				fid.write("# Markups fiducial file version = 4.11\n")
+				fid.write("# CoordinateSystem = 0\n")
+				fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
+			
+			df.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
+								6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
+								11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
+			
+			df['associatedNodeID']= pd.Series(np.repeat('',df.shape[0]))
+			df['label']=[x.strip() for x in df['label']]
+			df.round(6).to_csv(input_fcsv, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
+			
+			print(f"Converted LPS to RAS: {os.path.dirname(input_fcsv)}/{os.path.basename(input_fcsv)}")
+	return coord_sys,headFin
 
 def determine_groups(iterable, numbered_labels=False):
 	values = []
 	for item in iterable:
+		item=item.strip()
 		temp=None
 		if re.findall(r"([a-zA-Z]+)([0-9]+)([a-zA-Z]+)", item):
 			temp = "".join(list(re.findall(r"([a-zA-Z]+)([0-9]+)([a-zA-Z]+)", item)[0]))
@@ -116,6 +122,72 @@ def norm_vec(P1, P2):
 	NormVec = np.array([float(DirVec[0] / MagVec), float(DirVec[1] / MagVec), float(DirVec[2] / MagVec)])
 	return NormVec
 
+def writeFCSV(data_fcsv, fcsv_fname, coord_sys='RAS'):
+	with open(fcsv_fname, 'w') as fid:
+		fid.write("# Markups fiducial file version = 4.11\n")
+		fid.write(f"# CoordinateSystem = {coord_sys}\n")
+		fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
+	
+	data_fcsv.to_csv(fcsv_fname, sep=',', encoding='utf-8', header= False, index = False, na_rep='', mode='a', lineterminator="", float_format='%.6f')
+
+class IndexTracker:
+	def __init__(self, ax, img_data,points=None, rotate_img=False, rotate_points=False, title=None):
+		self.ax = ax
+		self.scatter=None
+		self.points=None
+		self.title=title
+		no_index= True
+		if rotate_img:
+			self.img_data = np.fliplr(np.rot90(img_data.copy(),3))
+			#if self.points is not None:
+			#	self.points = np.rot90(points, k=1)
+		else:
+			self.img_data = img_data.copy()
+		
+		rows, cols, self.slices = self.img_data.shape
+		self.ind = self.slices//2
+		if points is not None:
+			self.points=points.copy()
+			if rotate_points:
+				self.points[:,[0,1]]=self.points[:,[1,0]]
+			while no_index==True:
+				if any(self.points[:,2]==self.ind):
+					no_index=False
+					point_plot=np.vstack([np.mean(self.points[(self.points[:,2]==self.ind)*(self.points[:,3]==x),:2],0) for x in np.unique(self.points[self.points[:,2]==self.ind,3])])
+					self.scatter,=ax.plot(point_plot[:,1],point_plot[:,0], marker="o", markersize=12, c = 'yellow', fillstyle='none', markeredgewidth=1, linestyle = 'None')
+				else:
+					self.ind+=1
+				
+		self.im = ax.imshow(self.img_data[:, :, self.ind], origin='lower')
+		self.update()
+	
+	def on_scroll(self, event):
+		print("%s %s" % (event.button, event.step))
+		if event.button == 'up':
+			self.ind = (self.ind + 1) % self.slices
+		else:
+			self.ind = (self.ind - 1) % self.slices
+		self.update()
+	
+	def update(self):
+		
+		if self.points is not None:
+			if any(self.points[:,2]==self.ind):
+				point_plot=np.vstack([np.mean(self.points[(self.points[:,2]==self.ind)*(self.points[:,3]==x),:2],0) for x in np.unique(self.points[self.points[:,2]==self.ind,3])])
+				self.scatter.set_xdata(point_plot[:,1])
+				self.scatter.set_ydata(point_plot[:,0])
+		self.im.set_data(self.img_data[:, :, self.ind])
+		
+		if self.title is not None:
+			plot_title=self.title
+		else:
+			plot_title='slice %s' % self.ind
+		
+		self.ax.set_title(plot_title, fontdict={'fontsize': 18, 'fontweight': 'bold'})
+		self.ax.tick_params(axis='x', labelsize=14)
+		self.ax.tick_params(axis='y', labelsize=14)
+		self.im.axes.figure.canvas.draw()
+
 #%%
 
 electrodeModels = {}
@@ -133,10 +205,11 @@ RD10RSP03 = {
 		'electrode_2': [1,2,3,4,5,6,7,8,9,10],
 		'contact_label':['','','','','','','', ''],
 		'lead_type': 'linear',
-		'filename': 'rd10rsp03'
+		'filename': 'rd10rsp03',
+		'catalog_num': 'RD10R-SP03X'
 	 }
 	 
-electrodeModels['3 mm'] = RD10RSP03
+electrodeModels['RD10RSP03'] = RD10RSP03
 
 RD10RSP04 = {
 		'num_groups': 10,
@@ -151,10 +224,11 @@ RD10RSP04 = {
 		'electrode_2': [1,2,3,4,5,6,7,8,9,10],
 		'contact_label':['','','','','','','', ''],
 		'lead_type': 'linear',
-		'filename': 'rd10rsp04'
+		'filename': 'rd10rsp04',
+		'catalog_num': 'RD10R-SP04X'
 	 }
 	 
-electrodeModels['4 mm'] = RD10RSP04
+electrodeModels['RD10RSP04'] = RD10RSP04
 
 RD10RSP05 = {
 		'num_groups': 10,
@@ -169,10 +243,11 @@ RD10RSP05 = {
 		'electrode_2': [1,2,3,4,5,6,7,8,9,10],
 		'contact_label':['','','','','','','', ''],
 		'lead_type': 'linear',
-		'filename': 'rd10rsp05'
+		'filename': 'rd10rsp05',
+		'catalog_num': 'RD10R-SP05X'
 	 }
 	 
-electrodeModels['5 mm'] = RD10RSP05
+electrodeModels['RD10RSP05'] = RD10RSP05
 
 RD10RSP06 = {
 		'num_groups': 10,
@@ -187,10 +262,11 @@ RD10RSP06 = {
 		'electrode_2': [1,2,3,4,5,6,7,8,9,10],
 		'contact_label':['','','','','','','', ''],
 		'lead_type': 'linear',
-		'filename': 'rd10rsp06'
+		'filename': 'rd10rsp06',
+		'catalog_num': 'RD10R-SP06X'
 	 }
 	 
-electrodeModels['6 mm'] = RD10RSP06
+electrodeModels['RD10RSP06'] = RD10RSP06
 
 RD10RSP07 = {
 		'num_groups': 10,
@@ -205,10 +281,11 @@ RD10RSP07 = {
 		'electrode_2': [1,2,3,4,5,6,7,8,9,10],
 		'contact_label':['','','','','','','', ''],
 		'lead_type': 'linear',
-		'filename': 'rd10rsp07'
+		'filename': 'rd10rsp07',
+		'catalog_num': 'RD10R-SP07X'
 	 }
 	 
-electrodeModels['7 mm'] = RD10RSP07
+electrodeModels['RD10RSP07'] = RD10RSP07
 
 MM16DSP05 = {
 		'num_groups': 8,

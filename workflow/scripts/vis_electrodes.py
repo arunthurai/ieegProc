@@ -6,7 +6,6 @@ import re
 import matplotlib.pyplot as plt
 from nilearn import plotting
 
-matplotlib.use('Agg')
 
 debug = False
 
@@ -89,7 +88,7 @@ tcoords = np.zeros(coords.shape)
 for i in range(len(coords)):
 
     vec = np.hstack([coords[i,:],1])
-    tvec = np.linalg.inv(sub2template) @ vec.T
+    tvec = sub2template @ vec.T
     tcoords[i,:] = tvec[:3]
 
 html_view = plotting.view_markers(tcoords, marker_size=4.0, marker_color=colors, marker_labels=df['label'].tolist())
